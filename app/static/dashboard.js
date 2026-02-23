@@ -1,5 +1,7 @@
 // ── State ────────────────────────────────────────────────────────────────────
 let charts = {};
+let currentSessions = [];
+let currentTopPrompts = [];
 
 function getFilters() {
   return {
@@ -32,6 +34,56 @@ const PALETTE = [
   '#a78bfa','#fb923c','#4ade80','#e879f9','#67e8f9',
 ];
 
+// ── Theme ─────────────────────────────────────────────────────────────────────
+function getTheme() {
+  return document.documentElement.dataset.theme || 'dark';
+}
+
+function initTheme() {
+  const saved = localStorage.getItem('devbuddy-theme') || 'dark';
+  document.documentElement.dataset.theme = saved;
+  updateThemeBtn(saved);
+}
+
+function toggleTheme() {
+  const next = getTheme() === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('devbuddy-theme', next);
+  updateThemeBtn(next);
+  loadDaily();
+  loadProjects();
+}
+
+function updateThemeBtn(theme) {
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = theme === 'dark' ? '\u2600' : '\uD83C\uDF19';
+}
+
+function getChartScale() {
+  return {
+    tick: '#64748b',
+    grid: getTheme() === 'light' ? '#e2e8f0' : '#334155',
+  };
+}
+
+function makeGradient(ctx, r, g, b) {
+  const grad = ctx.createLinearGradient(0, 0, 0, 300);
+  const a = getTheme() === 'light' ? 0.18 : 0.25;
+  grad.addColorStop(0, `rgba(${r},${g},${b},${a})`);
+  grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+  return grad;
+}
+
+const TOOLTIP_STYLE = {
+  backgroundColor: 'rgba(15,23,42,0.92)',
+  titleColor: '#e2e8f0',
+  bodyColor: '#94a3b8',
+  borderColor: '#334155',
+  borderWidth: 1,
+  padding: 10,
+  cornerRadius: 6,
+};
+
 // ── Overview cards ───────────────────────────────────────────────────────────
 async function loadOverview() {
   const res = await fetch('/api/overview' + buildQS());
@@ -42,7 +94,7 @@ async function loadOverview() {
   document.getElementById('c-queries').textContent  = d.total_queries.toLocaleString() + ' total queries';
   if (d.date_range && d.date_range.from) {
     document.getElementById('c-date-range').textContent =
-      d.date_range.from + ' → ' + d.date_range.to;
+      d.date_range.from + ' \u2192 ' + d.date_range.to;
   }
 }
 
@@ -50,9 +102,12 @@ async function loadOverview() {
 async function loadDaily() {
   const res = await fetch('/api/daily' + buildQS());
   const d = await res.json();
+  const sc = getChartScale();
 
   if (charts.daily) charts.daily.destroy();
   const ctx = document.getElementById('daily-chart').getContext('2d');
+  const gradient = makeGradient(ctx, 56, 189, 248);
+
   charts.daily = new Chart(ctx, {
     type: 'line',
     data: {
@@ -62,9 +117,13 @@ async function loadDaily() {
           label: 'Tokens',
           data: d.tokens,
           borderColor: '#38bdf8',
-          backgroundColor: 'rgba(56,189,248,0.08)',
+          backgroundColor: gradient,
           borderWidth: 2,
           pointRadius: 2,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: '#38bdf8',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2,
           tension: 0.3,
           fill: true,
         },
@@ -76,23 +135,25 @@ async function loadDaily() {
       plugins: {
         legend: { display: false },
         tooltip: {
+          ...TOOLTIP_STYLE,
           callbacks: {
-            label: ctx => ' ' + fmtTokens(ctx.raw) + ' tokens',
+            label: ctx => '  ' + fmtTokens(ctx.raw) + ' tokens',
           },
         },
       },
       scales: {
-        x: { ticks: { color: '#64748b', maxTicksLimit: 12 }, grid: { color: '#1e293b' } },
-        y: { ticks: { color: '#64748b', callback: fmtTokens }, grid: { color: '#1e293b' } },
+        x: { ticks: { color: sc.tick, maxTicksLimit: 12 }, grid: { color: sc.grid } },
+        y: { ticks: { color: sc.tick, callback: fmtTokens }, grid: { color: sc.grid } },
       },
     },
   });
 }
 
-// ── Projects charts ───────────────────────────────────────────────────────────
+// ── Projects charts ────────────────────────────────────────────────────────────
 async function loadProjects() {
   const res = await fetch('/api/projects' + buildQS());
   const data = await res.json();
+  const sc = getChartScale();
 
   const labels   = data.map(p => p.project);
   const tokens   = data.map(p => p.total_tokens);
@@ -111,6 +172,7 @@ async function loadProjects() {
         data: tokens,
         backgroundColor: colors,
         borderRadius: 4,
+        borderSkipped: false,
       }],
     },
     options: {
@@ -118,12 +180,20 @@ async function loadProjects() {
       plugins: {
         legend: { display: false },
         tooltip: {
-          callbacks: { label: ctx => ' ' + fmtTokens(ctx.raw) + ' tokens' },
+          ...TOOLTIP_STYLE,
+          callbacks: {
+            label: ctx => '  ' + fmtTokens(ctx.raw) + ' tokens',
+            afterLabel: ctx => {
+              if (!ctx.raw) return '';
+              const total = tokens.reduce((a, b) => a + b, 0) || 1;
+              return '  ' + ((ctx.raw / total) * 100).toFixed(1) + '% of total';
+            },
+          },
         },
       },
       scales: {
-        x: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } },
-        y: { ticks: { color: '#64748b', callback: fmtTokens }, grid: { color: '#1e293b' } },
+        x: { ticks: { color: sc.tick }, grid: { color: sc.grid } },
+        y: { ticks: { color: sc.tick, callback: fmtTokens }, grid: { color: sc.grid } },
       },
     },
   });
@@ -139,6 +209,7 @@ async function loadProjects() {
         data: sessions,
         backgroundColor: colors,
         borderWidth: 0,
+        hoverOffset: 6,
       }],
     },
     options: {
@@ -147,7 +218,14 @@ async function loadProjects() {
       plugins: {
         legend: { position: 'right', labels: { color: '#94a3b8', boxWidth: 12, padding: 10 } },
         tooltip: {
-          callbacks: { label: ctx => ' ' + ctx.raw + ' sessions' },
+          ...TOOLTIP_STYLE,
+          callbacks: {
+            label: ctx => {
+              const total = sessions.reduce((a, b) => a + b, 0) || 1;
+              const pct = ((ctx.raw / total) * 100).toFixed(1);
+              return `  ${ctx.raw} sessions (${pct}%)`;
+            },
+          },
         },
       },
     },
@@ -158,6 +236,7 @@ async function loadProjects() {
 async function loadTopPrompts() {
   const res = await fetch('/api/top-prompts' + buildQS());
   const data = await res.json();
+  currentTopPrompts = data;
   const tbody = document.getElementById('prompts-body');
   if (!data.length) {
     tbody.innerHTML = '<tr><td colspan="4" class="empty">No data</td></tr>';
@@ -177,6 +256,7 @@ async function loadTopPrompts() {
 async function loadSessions() {
   const res = await fetch('/api/sessions' + buildQS());
   const data = await res.json();
+  currentSessions = data;
   const tbody = document.getElementById('sessions-body');
   if (!data.length) {
     tbody.innerHTML = '<tr><td colspan="6" class="empty">No sessions</td></tr>';
@@ -187,7 +267,7 @@ async function loadSessions() {
       <td><div class="prompt-text" title="${escHtml(s.first_prompt)}">${escHtml(s.first_prompt)}</div></td>
       <td><span class="badge">${escHtml(s.project)}</span></td>
       <td>${s.date}</td>
-      <td style="color:var(--muted);font-size:12px">${s.model ? s.model.replace('claude-', '') : '—'}</td>
+      <td style="color:var(--muted);font-size:12px">${s.model ? s.model.replace('claude-', '') : '\u2014'}</td>
       <td class="num">${s.query_count}</td>
       <td class="num">${fmtTokens(s.total_tokens)}</td>
     </tr>
@@ -238,7 +318,7 @@ function clearFilters() {
 async function refreshData() {
   const btn = document.getElementById('refresh-btn');
   btn.classList.add('loading');
-  btn.textContent = '⟳ Refreshing…';
+  btn.textContent = '\u27F3 Refreshing\u2026';
   try {
     const res = await fetch('/api/refresh');
     const d = await res.json();
@@ -248,7 +328,44 @@ async function refreshData() {
     await loadAll();
   } finally {
     btn.classList.remove('loading');
-    btn.textContent = '↻ Refresh';
+    btn.textContent = '\u21BB Refresh';
+  }
+}
+
+// ── Export ─────────────────────────────────────────────────────────────────────
+function toCSV(rows, cols) {
+  const header = cols.join(',');
+  const lines = rows.map(r => cols.map(c => JSON.stringify(r[c] ?? '')).join(','));
+  return [header, ...lines].join('\n');
+}
+
+function downloadBlob(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportSessions(format) {
+  if (!currentSessions.length) return;
+  if (format === 'json') {
+    downloadBlob(JSON.stringify(currentSessions, null, 2), 'sessions.json', 'application/json');
+  } else {
+    const cols = ['date', 'project', 'model', 'query_count', 'total_tokens', 'first_prompt'];
+    downloadBlob(toCSV(currentSessions, cols), 'sessions.csv', 'text/csv');
+  }
+}
+
+function exportTopPrompts(format) {
+  if (!currentTopPrompts.length) return;
+  if (format === 'json') {
+    downloadBlob(JSON.stringify(currentTopPrompts, null, 2), 'top-prompts.json', 'application/json');
+  } else {
+    const cols = ['user_prompt', 'total_tokens', 'query_count', 'project'];
+    downloadBlob(toCSV(currentTopPrompts, cols), 'top-prompts.csv', 'text/csv');
   }
 }
 
@@ -273,6 +390,7 @@ function escAttr(str) { return escHtml(str); }
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 (async () => {
+  initTheme();
   await loadFilters();
   loadAll();
 })();

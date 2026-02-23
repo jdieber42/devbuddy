@@ -72,10 +72,10 @@ DevBuddy is a lightweight local AI coding companion designed to analyze usage, t
 **Tasks:**
 
 * [ ] Live monitoring mode (auto-refresh dashboard with new session data)
+* [ ] Add a heatmap which shows the actions by day and can be filtered by following action: promts per day, tokens per day or hours per day
 * [ ] Multi-project support and switching
 * [ ] Plugin system for custom analytics
 * [ ] Optionally track AI model performance (e.g., completion times, success rates)
-* [ ] Add multi-user or team mode (optional)
 
 ---
 
