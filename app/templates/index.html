@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,6 +19,7 @@
     <a href="#sessions-section">Sessions</a>
     <a href="#insights-section">Insights</a>
   </nav>
+  <button id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode">&#9728;</button>
   <button id="refresh-btn" onclick="refreshData()">&#x21BB; Refresh</button>
 </header>
 
@@ -87,7 +88,13 @@
   </div>
 
   <!-- Top Prompts -->
-  <div class="section-title">Top Prompts by Token Usage</div>
+  <div class="section-header">
+    <div class="section-title">Top Prompts by Token Usage</div>
+    <div class="section-actions">
+      <button class="export-btn" onclick="exportTopPrompts('csv')">&#8595; CSV</button>
+      <button class="export-btn" onclick="exportTopPrompts('json')">&#8595; JSON</button>
+    </div>
+  </div>
   <div class="table-card">
     <table id="prompts-table">
       <thead>
@@ -105,7 +112,13 @@
   </div>
 
   <!-- Sessions -->
-  <div id="sessions-section" class="section-title" style="padding-top:8px">Recent Sessions</div>
+  <div class="section-header" id="sessions-section">
+    <div class="section-title">Recent Sessions</div>
+    <div class="section-actions">
+      <button class="export-btn" onclick="exportSessions('csv')">&#8595; CSV</button>
+      <button class="export-btn" onclick="exportSessions('json')">&#8595; JSON</button>
+    </div>
+  </div>
   <div class="table-card">
     <table>
       <thead>
