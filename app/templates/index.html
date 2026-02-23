@@ -1,42 +1,137 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>DevBuddy</title>
-    <link rel="icon" type="image/svg+xml" href="{{ request.url_for('static', path='dog.svg') }}">
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DevBuddy — Claude Code Analytics</title>
+  <link rel="icon" type="image/svg+xml" href="{{ request.url_for('static', path='dog.svg') }}">
+  <link rel="stylesheet" href="{{ request.url_for('static', path='dashboard.css') }}">
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <h1>
-        <img src="{{ request.url_for('static', path='logo.png') }}" alt="DevBuddy" style="width:234px;height:65px;vertical-align:middle;margin-right:8px">
-    </h1>
-    <div hx-get="/api/stats" hx-trigger="load" hx-target="#chart-data"></div>
-    
-    <canvas id="chart" width="600" height="300"></canvas>
-    
-    <script>
-        document.body.addEventListener("htmx:afterRequest", function(evt) {
-            if (evt.detail.target.id === "chart-data") {
-                const data = evt.detail.xhr.response;
-                renderChart(JSON.parse(data));
-            }
-        });
 
-        function renderChart(data) {
-            const ctx = document.getElementById("chart").getContext("2d");
-            new Chart(ctx, {
-                type: "line",
-                data: {
-                    labels: data.labels,
-                    datasets: [{
-                        label: "Tokens per Day",
-                        data: data.values
-                    }]
-                }
-            });
-        }
-    </script>
-    
-    <div id="chart-data" style="display:none;"></div>
+<!-- Header -->
+<header>
+  <img src="{{ request.url_for('static', path='logo.png') }}" alt="DevBuddy">
+  <nav>
+    <a href="#" class="active">Dashboard</a>
+    <a href="#sessions-section">Sessions</a>
+    <a href="#insights-section">Insights</a>
+  </nav>
+  <button id="refresh-btn" onclick="refreshData()">&#x21BB; Refresh</button>
+</header>
+
+<!-- Demo data banner -->
+<div id="demo-banner">
+  No Claude Code logs found — showing demo data. Point Claude Code at a project and refresh.
+</div>
+
+<!-- Filters -->
+<div id="filters">
+  <label>From</label>
+  <input type="date" id="f-from" onchange="applyFilters()">
+  <label>To</label>
+  <input type="date" id="f-to" onchange="applyFilters()">
+  <label>Project</label>
+  <select id="f-project" onchange="applyFilters()">
+    <option value="">All Projects</option>
+  </select>
+  <label>Model</label>
+  <select id="f-model" onchange="applyFilters()">
+    <option value="">All Models</option>
+  </select>
+  <button id="clear-btn" onclick="clearFilters()">Clear</button>
+</div>
+
+<main>
+
+  <!-- Summary Cards -->
+  <div class="section-title">Overview</div>
+  <div id="cards">
+    <div class="card">
+      <div class="card-label">Total Sessions</div>
+      <div class="card-value" id="c-sessions">—</div>
+      <div class="card-sub" id="c-date-range">&nbsp;</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Tokens Used</div>
+      <div class="card-value" id="c-tokens">—</div>
+      <div class="card-sub" id="c-queries">&nbsp;</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Active Hours</div>
+      <div class="card-value" id="c-hours">—</div>
+      <div class="card-sub">distinct hours with activity</div>
+    </div>
+  </div>
+
+  <!-- Usage Over Time -->
+  <div id="charts-row">
+    <div class="chart-card">
+      <div class="section-title">Usage Over Time</div>
+      <canvas id="daily-chart" height="90"></canvas>
+    </div>
+  </div>
+
+  <!-- Token Distribution + Sessions by Project -->
+  <div id="bottom-charts">
+    <div class="chart-card">
+      <div class="section-title">Token Distribution by Project</div>
+      <canvas id="efficiency-chart" height="200"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="section-title">Sessions by Project</div>
+      <canvas id="donut-chart" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- Top Prompts -->
+  <div class="section-title">Top Prompts by Token Usage</div>
+  <div class="table-card">
+    <table id="prompts-table">
+      <thead>
+        <tr>
+          <th style="width:55%">Prompt</th>
+          <th class="num">Tokens</th>
+          <th class="num">Queries</th>
+          <th>Project</th>
+        </tr>
+      </thead>
+      <tbody id="prompts-body">
+        <tr><td colspan="4" class="empty">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Sessions -->
+  <div id="sessions-section" class="section-title" style="padding-top:8px">Recent Sessions</div>
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th>First Prompt</th>
+          <th>Project</th>
+          <th>Date</th>
+          <th>Model</th>
+          <th class="num">Queries</th>
+          <th class="num">Tokens</th>
+        </tr>
+      </thead>
+      <tbody id="sessions-body">
+        <tr><td colspan="6" class="empty">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Insights -->
+  <div id="insights-section" class="section-title" style="padding-top:8px">Insights &amp; Alerts</div>
+  <div id="insights-list">
+    <div class="empty">Loading…</div>
+  </div>
+
+</main>
+
+<script src="{{ request.url_for('static', path='dashboard.js') }}"></script>
 </body>
 </html>

@@ -5,6 +5,7 @@ __pycache__/
 
 # private data
 /features/prototype
+.claude/
 
 # C extensions
 *.so

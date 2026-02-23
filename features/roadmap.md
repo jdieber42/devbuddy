@@ -35,13 +35,18 @@ DevBuddy is a lightweight local AI coding companion designed to analyze usage, t
 
 **Tasks:**
 
-* [ ] Parse AI session logs for token and prompt data
-* [ ] Compute metrics: avg tokens per session, prompt iterations, peak hours
-* [ ] Add Cost estimation per project / feature
-* [ ] Add Insights & Alerts section for unusual usage or high costs
-* [ ] Implement prompt efficiency visualizations
-* [ ] Enable filtering by date range, project, and AI model
-* [ ] Add Top files / modules usage stats
+* [x] Parse AI session logs for token and prompt data
+* [x] Compute metrics: avg tokens per session, prompt iterations, peak hours
+* [x] Add Cost estimation per project / feature
+* [x] Add Insights & Alerts section for unusual usage or high costs
+* [x] Implement prompt efficiency visualizations
+* [x] Enable filtering by date range, project, and AI model
+* [x] Add Top files / modules usage stats
+
+---
+
+## 🔍 Phase 2.1 — Adaptions of Core Analytics & Insights
+* [x] Costs in USD are not needed. Remove all cost relevant data and visuals.
 
 ---
 
