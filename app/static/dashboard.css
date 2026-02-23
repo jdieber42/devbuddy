@@ -311,6 +311,149 @@ tr:hover td { background: var(--surface2); }
 
 .empty { color: var(--muted); font-size: 13px; padding: 16px 0; text-align: center; }
 
+/* ── Live button ── */
+#live-btn {
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s, background .15s;
+}
+#live-btn:hover { color: var(--text); border-color: var(--success); }
+#live-btn.live-active {
+  color: var(--success);
+  border-color: var(--success);
+  background: rgba(52, 211, 153, 0.08);
+  animation: live-pulse 2s ease-in-out infinite;
+}
+@keyframes live-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+  50%       { box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.2); }
+}
+
+/* ── Live toast ── */
+#live-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--success);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 20px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .25s, transform .25s;
+  pointer-events: none;
+  z-index: 999;
+}
+#live-toast.visible { opacity: 1; transform: translateY(0); }
+
+/* ── Activity heatmap ── */
+#heatmap-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+#heatmap-grid { margin: 12px 0 8px; overflow-x: auto; }
+
+/* Layout: day-labels col + month/cells area */
+.hm-wrap { display: flex; align-items: flex-start; gap: 2px; }
+.hm-day-col { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+.hm-day-spacer { height: 16px; }
+.hm-day-lbl {
+  height: 12px;
+  font-size: 9px;
+  color: var(--muted);
+  line-height: 12px;
+  width: 24px;
+  text-align: right;
+}
+.hm-right { display: flex; flex-direction: column; gap: 2px; overflow-x: auto; }
+.hm-month { font-size: 10px; color: var(--muted); white-space: nowrap; align-self: start; }
+.hm-cells-grid {
+  display: grid;
+  grid-template-rows: repeat(7, 12px);
+  grid-auto-flow: column;
+  gap: 2px;
+}
+
+/* Cell intensity levels */
+.hm-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  cursor: default;
+}
+.hm-cell.lvl-0 { background: var(--surface2); }
+.hm-cell.lvl-1 { background: #1e4a6e; }
+.hm-cell.lvl-2 { background: #1a6fa5; }
+.hm-cell.lvl-3 { background: #1b96d6; }
+.hm-cell.lvl-4 { background: #38bdf8; }
+[data-theme="light"] .hm-cell.lvl-0 { background: #e2e8f0; }
+[data-theme="light"] .hm-cell.lvl-1 { background: #bae6fd; }
+[data-theme="light"] .hm-cell.lvl-2 { background: #7dd3fc; }
+[data-theme="light"] .hm-cell.lvl-3 { background: #38bdf8; }
+[data-theme="light"] .hm-cell.lvl-4 { background: #0284c7; }
+
+/* Floating tooltip */
+.hm-tooltip {
+  position: fixed;
+  background: rgba(15, 23, 42, 0.95);
+  color: #e2e8f0;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  pointer-events: none;
+  opacity: 0;
+  white-space: nowrap;
+  z-index: 500;
+  transition: opacity .1s;
+}
+.hm-tooltip.visible { opacity: 1; }
+[data-theme="light"] .hm-tooltip {
+  background: rgba(255,255,255,0.97);
+  color: #0f172a;
+  border-color: #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+
+.heatmap-filters { display: flex; gap: 6px; }
+.hm-btn {
+  padding: 4px 12px;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.hm-btn:hover { color: var(--text); border-color: var(--accent); }
+.hm-btn.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+#heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+#heatmap-legend .hm-cell { flex-shrink: 0; }
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
   #cards { grid-template-columns: repeat(2, 1fr); }

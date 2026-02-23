@@ -1,3 +1,20 @@
 {
-    "svg.preview.background": "transparent"
+    "svg.preview.background": "transparent",
+    "sqltools.connections": [],
+    "sqltools.useNodeRuntime": true,
+    "workbench.editorAssociations": {
+        "*.copilotmd": "vscode.markdown.preview.editor",
+        "*.parquet": "duckdb.dataFileViewer",
+        "*.csv": "duckdb.dataFileViewer",
+        "*.tsv": "duckdb.dataFileViewer"
+    },
+    "duckdb.databases": [
+        {
+            "alias": "devbuddy",
+            "type": "file",
+            "path": "c:\\_work\\devbuddy\\data\\devbuddy.duckdb",
+            "attached": false
+        }
+    ],
+    "duckdb.defaultDatabase": "devbuddy"
 }

@@ -2,6 +2,8 @@
 Generates usage insights from sessions and queries.
 Python translation of parser.js generateInsights().
 """
+import importlib.util
+from pathlib import Path
 
 
 def _fmt(n: int | float) -> str:
@@ -13,6 +15,32 @@ def _fmt(n: int | float) -> str:
     if n >= 1_000:
         return f"{n / 1_000:.1f}K"
     return f"{n:,}"
+
+
+def load_plugins(sessions: list[dict], queries: list[dict]) -> list[dict]:
+    """Load plugins from plugins/ directory and gather their insights."""
+    plugins_dir = Path(__file__).parent.parent / "plugins"
+    extra: list[dict] = []
+    if not plugins_dir.exists():
+        return extra
+    for plugin_path in sorted(plugins_dir.glob("*.py")):
+        if plugin_path.name.startswith("_"):
+            continue
+        try:
+            spec = importlib.util.spec_from_file_location(
+                f"devbuddy_plugin_{plugin_path.stem}", plugin_path
+            )
+            if spec is None or spec.loader is None:
+                continue
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            if hasattr(module, "generate_insights"):
+                result = module.generate_insights(sessions, queries)
+                if isinstance(result, list):
+                    extra.extend(result)
+        except Exception:
+            pass  # Never crash on plugin errors
+    return extra
 
 
 def generate_insights(sessions: list[dict], queries: list[dict]) -> list[dict]:
@@ -315,6 +343,7 @@ def generate_insights(sessions: list[dict], queries: list[dict]) -> list[dict]:
                 ),
             })
 
+    insights.extend(load_plugins(sessions, queries))
     return insights
 
 

@@ -79,7 +79,7 @@ DevBuddy is a lightweight local AI coding companion designed to analyze usage, t
 
 ---
 
-## 🔒 Phase 5 — Security & Privacy Enhancements
+## 🔒 Phase 5 — Security, Privacy Enhancements & Documentation
 
 **Goal:** Ensure all data is local and private.
 
@@ -88,6 +88,7 @@ DevBuddy is a lightweight local AI coding companion designed to analyze usage, t
 * [ ] Validate that no telemetry or cloud communication occurs
 * [ ] Encrypt sensitive data if needed
 * [ ] Add configuration for secure local storage
+* [ ] Add a basic documentation of the project with a data diagramm and description
 
 ---
 
@@ -100,8 +101,7 @@ DevBuddy is a lightweight local AI coding companion designed to analyze usage, t
 * [ ] Create PyInstaller builds for Windows, Linux, macOS
 * [ ] Test cross-platform compatibility
 * [ ] Update documentation with screenshots and mockups
-* [ ] Create GitHub repo, release notes, and MIT license
-* [ ] Optional: create Docker image for containerized use
+* [ ] Create Docker image for containerized use
 
 ---
 
