@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DevBuddy</title>
+    <link rel="icon" type="image/svg+xml" href="{{ request.url_for('static', path='dog.svg') }}">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>
+        <img src="{{ request.url_for('static', path='dog.svg') }}" alt="DevBuddy" style="width:30px;height:30px;vertical-align:middle;margin-right:8px">
+        DevBuddy Dashboard
+    </h1>
+    
+    <div hx-get="/api/stats" hx-trigger="load" hx-target="#chart-data"></div>
+    
+    <canvas id="chart" width="600" height="300"></canvas>
+    
+    <script>
+        document.body.addEventListener("htmx:afterRequest", function(evt) {
+            if (evt.detail.target.id === "chart-data") {
+                const data = evt.detail.xhr.response;
+                renderChart(JSON.parse(data));
+            }
+        });
+
+        function renderChart(data) {
+            const ctx = document.getElementById("chart").getContext("2d");
+            new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: "Tokens per Day",
+                        data: data.values
+                    }]
+                }
+            });
+        }
+    </script>
+    
+    <div id="chart-data" style="display:none;"></div>
+</body>
+</html>
