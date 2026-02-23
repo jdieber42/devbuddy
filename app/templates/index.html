@@ -20,6 +20,7 @@
     <a href="#insights-section">Insights</a>
   </nav>
   <button id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark mode">&#9728;</button>
+  <button id="live-btn" onclick="toggleLive()" title="Toggle live monitoring">&#9654; Live</button>
   <button id="refresh-btn" onclick="refreshData()">&#x21BB; Refresh</button>
 </header>
 
@@ -67,6 +68,28 @@
     </div>
   </div>
 
+  <!-- Activity Heatmap -->
+  <div id="heatmap-section">
+    <div class="section-header">
+      <div class="section-title">Activity Heatmap</div>
+      <div class="heatmap-filters">
+        <button class="hm-btn active" onclick="setHeatmapMetric('tokens', this)">Tokens</button>
+        <button class="hm-btn" onclick="setHeatmapMetric('prompts', this)">Prompts</button>
+        <button class="hm-btn" onclick="setHeatmapMetric('hours', this)">Hours</button>
+      </div>
+    </div>
+    <div id="heatmap-grid"></div>
+    <div id="heatmap-legend">
+      <span>Less</span>
+      <span class="hm-cell lvl-0"></span>
+      <span class="hm-cell lvl-1"></span>
+      <span class="hm-cell lvl-2"></span>
+      <span class="hm-cell lvl-3"></span>
+      <span class="hm-cell lvl-4"></span>
+      <span>More</span>
+    </div>
+  </div>
+
   <!-- Usage Over Time -->
   <div id="charts-row">
     <div class="chart-card">
@@ -85,6 +108,23 @@
       <div class="section-title">Sessions by Project</div>
       <canvas id="donut-chart" height="200"></canvas>
     </div>
+  </div>
+
+  <!-- Model Performance -->
+  <div class="section-title">Model Performance</div>
+  <div class="table-card">
+    <table id="model-table">
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th class="num">Sessions</th>
+          <th class="num">Total Tokens</th>
+          <th class="num">Avg Tokens/Session</th>
+          <th class="num">Avg Queries/Session</th>
+        </tr>
+      </thead>
+      <tbody id="model-body"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+    </table>
   </div>
 
   <!-- Top Prompts -->
@@ -145,6 +185,8 @@
 
 </main>
 
+<div id="live-toast">Updated</div>
+<div id="hm-tooltip" class="hm-tooltip"></div>
 <script src="{{ request.url_for('static', path='dashboard.js') }}"></script>
 </body>
 </html>

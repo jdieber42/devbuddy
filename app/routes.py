@@ -1,8 +1,12 @@
 """
 API routes for DevBuddy Phase 2.
 """
-from datetime import datetime
+from datetime import datetime, date as _date, timedelta as _timedelta
+from pathlib import Path
 from typing import Optional
+import glob
+import os
+import time
 
 import duckdb
 from fastapi import APIRouter, Query
@@ -11,6 +15,8 @@ from .db import get_db_path, init_schema, refresh_db
 from .insights import generate_insights
 
 router = APIRouter()
+
+_last_check_mtime: float = 0.0
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -412,8 +418,116 @@ def get_filters():
 
 @router.get("/api/refresh")
 def api_refresh():
+    global _last_check_mtime
+    _last_check_mtime = 0.0
     result = refresh_db()
     return result
+
+
+@router.get("/api/has-changes")
+def api_has_changes():
+    global _last_check_mtime
+    prev = _last_check_mtime
+    _last_check_mtime = time.time()
+    changed = False
+    home = Path.home()
+    for pattern in [
+        str(home / ".claude" / "projects" / "**" / "*.jsonl"),
+        str(home / ".claude" / "history.jsonl"),
+    ]:
+        for fpath in glob.glob(pattern, recursive=True):
+            try:
+                if os.path.getmtime(fpath) > prev:
+                    changed = True
+                    break
+            except OSError:
+                pass
+        if changed:
+            break
+    return {"changed": changed}
+
+
+@router.get("/api/heatmap")
+def get_heatmap(metric: str = Query("tokens")):
+    con = _open_db()
+    try:
+        _ensure_data(con)
+        today = _date.today()
+        start = today - _timedelta(days=364)
+
+        if metric == "prompts":
+            rows = con.execute(
+                "SELECT date, SUM(query_count) FROM sessions WHERE date >= ? GROUP BY date",
+                [start.isoformat()],
+            ).fetchall()
+        elif metric == "hours":
+            rows = con.execute(
+                "SELECT date, COUNT(DISTINCT EXTRACT(HOUR FROM timestamp)) FROM sessions WHERE date >= ? GROUP BY date",
+                [start.isoformat()],
+            ).fetchall()
+        else:
+            rows = con.execute(
+                "SELECT date, SUM(total_tokens) FROM sessions WHERE date >= ? GROUP BY date",
+                [start.isoformat()],
+            ).fetchall()
+
+        value_map = {}
+        for r in rows:
+            d = r[0]
+            key = d.isoformat() if hasattr(d, "isoformat") else str(d)[:10]
+            value_map[key] = int(r[1] or 0)
+
+        result = []
+        for i in range(365):
+            d = start + _timedelta(days=i)
+            d_str = d.isoformat()
+            result.append({
+                "date": d_str,
+                "value": value_map.get(d_str, 0),
+                "week": i // 7,
+                "day": d.weekday(),
+            })
+        return result
+    finally:
+        con.close()
+
+
+@router.get("/api/model-stats")
+def get_model_stats(
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    project: Optional[str] = Query(None),
+    model: Optional[str] = Query(None),
+):
+    con = _open_db()
+    try:
+        _ensure_data(con)
+        where, params = _session_filter(from_date, to_date, project, model)
+        rows = con.execute(
+            f"""
+            SELECT model,
+                COUNT(*) AS session_count,
+                SUM(total_tokens) AS total_tokens,
+                AVG(total_tokens) AS avg_tokens_per_session,
+                AVG(query_count) AS avg_queries_per_session
+            FROM sessions{where}
+            GROUP BY model
+            ORDER BY total_tokens DESC
+            """,
+            params,
+        ).fetchall()
+        return [
+            {
+                "model": r[0],
+                "session_count": r[1],
+                "total_tokens": r[2],
+                "avg_tokens_per_session": round(r[3]) if r[3] else 0,
+                "avg_queries_per_session": round(r[4], 1) if r[4] else 0.0,
+            }
+            for r in rows
+        ]
+    finally:
+        con.close()
 
 
 # Backwards-compat alias

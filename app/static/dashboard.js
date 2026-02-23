@@ -2,6 +2,8 @@
 let charts = {};
 let currentSessions = [];
 let currentTopPrompts = [];
+let liveInterval = null;
+let heatmapMetric = 'tokens';
 
 function getFilters() {
   return {
@@ -369,11 +371,172 @@ function exportTopPrompts(format) {
   }
 }
 
+// ── Live monitoring ────────────────────────────────────────────────────────────
+function toggleLive() {
+  const btn = document.getElementById('live-btn');
+  if (liveInterval) {
+    clearInterval(liveInterval);
+    liveInterval = null;
+    btn.classList.remove('live-active');
+    btn.innerHTML = '&#9654; Live';
+  } else {
+    liveInterval = setInterval(checkForChanges, 30000);
+    btn.classList.add('live-active');
+    btn.innerHTML = '&#9646;&#9646; Live';
+  }
+}
+
+async function checkForChanges() {
+  try {
+    const res = await fetch('/api/has-changes');
+    const d = await res.json();
+    if (d.changed) {
+      await loadAll();
+      showLiveToast();
+    }
+  } catch (_) { /* ignore network errors */ }
+}
+
+function showLiveToast() {
+  const toast = document.getElementById('live-toast');
+  if (!toast) return;
+  toast.classList.add('visible');
+  setTimeout(() => toast.classList.remove('visible'), 2500);
+}
+
+// ── Activity heatmap ──────────────────────────────────────────────────────────
+function setHeatmapMetric(metric, btn) {
+  heatmapMetric = metric;
+  document.querySelectorAll('.hm-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadHeatmap();
+}
+
+async function loadHeatmap() {
+  const res = await fetch('/api/heatmap?metric=' + heatmapMetric);
+  const data = await res.json();
+  const container = document.getElementById('heatmap-grid');
+  if (!data.length) { container.innerHTML = ''; return; }
+
+  const values = data.map(d => d.value);
+  const max = Math.max(...values, 1);
+
+  function level(v) {
+    if (v <= 0) return 0;
+    if (v <= max * 0.25) return 1;
+    if (v <= max * 0.5)  return 2;
+    if (v <= max * 0.75) return 3;
+    return 4;
+  }
+
+  const unitLabel = heatmapMetric === 'tokens' ? 'tokens'
+    : heatmapMetric === 'prompts' ? 'prompts'
+    : 'active hours';
+
+  const numWeeks = Math.max(...data.map(d => d.week)) + 1;
+  const lookup = {};
+  for (const d of data) lookup[`${d.week}-${d.day}`] = d;
+
+  // Month labels: shown at the first week of each new month
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const seenMonths = new Set();
+  let monthHtml = '';
+  for (let w = 0; w < numWeeks; w++) {
+    for (let day = 0; day < 7; day++) {
+      const cell = lookup[`${w}-${day}`];
+      if (cell) {
+        const mk = cell.date.substring(0, 7);
+        if (!seenMonths.has(mk)) {
+          seenMonths.add(mk);
+          const mi = parseInt(cell.date.substring(5, 7)) - 1;
+          monthHtml += `<span class="hm-month" style="grid-column:${w + 1}">${MONTHS[mi]}</span>`;
+        }
+        break;
+      }
+    }
+  }
+
+  // Cells
+  let cellsHtml = '';
+  for (let w = 0; w < numWeeks; w++) {
+    for (let day = 0; day < 7; day++) {
+      const cell = lookup[`${w}-${day}`];
+      if (cell) {
+        const lvl = level(cell.value);
+        const [yr, mo, d] = cell.date.split('-').map(Number);
+        const dateStr = new Date(yr, mo - 1, d).toLocaleDateString(undefined, {
+          month: 'short', day: 'numeric', year: 'numeric'
+        });
+        const valStr = cell.value > 0
+          ? cell.value.toLocaleString() + ' ' + unitLabel
+          : 'No activity';
+        cellsHtml += `<div class="hm-cell lvl-${lvl}" data-tip="${escHtml(dateStr + ' \u2014 ' + valStr)}"></div>`;
+      } else {
+        cellsHtml += `<div class="hm-cell lvl-0"></div>`;
+      }
+    }
+  }
+
+  // Day-of-week labels on the left
+  const DAY_LABELS = ['Mon', '', 'Wed', '', 'Fri', '', 'Sun'];
+
+  container.innerHTML = `
+    <div class="hm-wrap">
+      <div class="hm-day-col">
+        <div class="hm-day-spacer"></div>
+        ${DAY_LABELS.map(l => `<div class="hm-day-lbl">${l}</div>`).join('')}
+      </div>
+      <div class="hm-right">
+        <div class="hm-month-row" style="display:grid;grid-template-columns:repeat(${numWeeks},14px);grid-template-rows:16px;">
+          ${monthHtml}
+        </div>
+        <div class="hm-cells-grid">${cellsHtml}</div>
+      </div>
+    </div>
+  `;
+
+  // Floating tooltip (position:fixed so it never clips)
+  const tip = document.getElementById('hm-tooltip');
+  container.querySelectorAll('.hm-cell[data-tip]').forEach(el => {
+    el.addEventListener('mouseenter', e => {
+      tip.textContent = e.currentTarget.dataset.tip;
+      tip.classList.add('visible');
+    });
+    el.addEventListener('mouseleave', () => tip.classList.remove('visible'));
+    el.addEventListener('mousemove', e => {
+      tip.style.left = (e.clientX + 14) + 'px';
+      tip.style.top  = (e.clientY - 40) + 'px';
+    });
+  });
+}
+
+// ── Model stats ───────────────────────────────────────────────────────────────
+async function loadModelStats() {
+  const res = await fetch('/api/model-stats' + buildQS());
+  const data = await res.json();
+  const tbody = document.getElementById('model-body');
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">No data</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td style="color:var(--text);font-size:12px">${escHtml(r.model ? r.model.replace('claude-', '') : '—')}</td>
+      <td class="num">${r.session_count.toLocaleString()}</td>
+      <td class="num">${fmtTokens(r.total_tokens)}</td>
+      <td class="num">${fmtTokens(r.avg_tokens_per_session)}</td>
+      <td class="num">${r.avg_queries_per_session}</td>
+    </tr>
+  `).join('');
+}
+
 // ── Load all ───────────────────────────────────────────────────────────────────
 function loadAll() {
   loadOverview();
   loadDaily();
   loadProjects();
+  loadHeatmap();
+  loadModelStats();
   loadTopPrompts();
   loadSessions();
   loadInsights();
