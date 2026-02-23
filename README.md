@@ -132,18 +132,6 @@ dist/
 
 ---
 
-## 🗺️ Roadmap
-
-* [ ] Auto-detect session folders
-* [ ] Multi-project support
-* [ ] Live monitoring mode
-* [ ] Advanced prompt analytics
-* [ ] Export (CSV / JSON)
-* [ ] Plugin system
-* [ ] Team dashboards (optional)
-
----
-
 ## 🤝 Contributing
 
 Contributions are welcome!
